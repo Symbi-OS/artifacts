@@ -2,6 +2,10 @@ This is redis built on an up to date (as of Nov 16) Fedora 36 install.
 It is built with systemd support (but does not require systemd to work) and with
 shared libraries.
 
+This binary was built from redis source at commit ced710fc8304fd24251514c87bd15008b2a3b1dd
+This commit was chosen based on the PrivBox experimental setup (it is the version
+they tested). It corresponds to 7.0+.
+
 ldd shows the following requirements:
 $ ldd redis-server 
 	linux-vdso.so.1 (0x00007ffef35eb000)
