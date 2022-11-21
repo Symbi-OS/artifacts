@@ -5,6 +5,9 @@ TOP_DIR=all_releases
 
 all: $(TOP_DIR)/Tools $(TOP_DIR)/Symlib $(TOP_DIR)/Linux
 
+virt-ramdisk: $(TOP_DIR)/Tools $(TOP_DIR)/Symlib $(TOP_DIR)/Linux
+	${MAKE} -C initrd
+
 # Make all_releases dir
 $(TOP_DIR):
 	mkdir $@
@@ -52,3 +55,4 @@ $(TOP_DIR)/Linux: $(TOP_DIR)
 
 clean:
 	rm -rf all_releases
+	${MAKE} -C initrd clean
