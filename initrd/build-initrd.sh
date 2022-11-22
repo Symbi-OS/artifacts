@@ -55,7 +55,7 @@ cp $ARTIFACTS/initrd/$VERSION/bin/* $BIN
 cp $ARTIFACTS/initrd/$VERSION/lib64/* $LIB64
 cp $ARTIFACTS/initrd/init $BASE/
 # Experimental tools
-cp $ARTIFACTS/all_releases/Linux/System.map-5.14.0-symbiote+ $BOOT/
+cp $ARTIFACTS/share/System.map-5.14.0-symbiote+ $BOOT/
 cp $ARTIFACTS/all_releases/Symlib/libSym.so $LIB64
 cp $ARTIFACTS/redis/$VERSION/redis-server $BIN
 cp $ARTIFACTS/redis/$VERSION/dep_libs/* $LIB64
