@@ -48,7 +48,13 @@ $(TOP_DIR)/Linux: $(TOP_DIR)
 	# NOTE: Skipping the (large) vmlinux file which is useful for debugging
 	cd $@ && curl $(LINUX_REL_PATH) | grep browser_download_url | grep -v vmlinux | cut -d '"' -f 4 | xargs wget
 
-
+update:
+	make -C ../Tools/bin/ipc_shortcut clean
+	make -C ../Tools/bin/ipc_shortcut
+	cp ../Tools/bin/ipc_shortcut/ipc_shortcut.so ./ipc_interposer
+	make -C ../LinuxPrototypes/shmem_ipc clean
+	make -C ../LinuxPrototypes/shmem_ipc
+	cp ../LinuxPrototypes/shmem_ipc/server ./ipc_interposer
 
 clean:
-	rm -rf all_releases
+	rm -rf all_releases *.rdb
