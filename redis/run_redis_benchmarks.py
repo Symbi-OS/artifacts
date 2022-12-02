@@ -7,7 +7,7 @@ MAX_INSTANCES = 32
 SERVER_NODE = '192.168.19.66'
 tmp_results_path = 'tmp_redis_results.csv'
 REDIS_BENCH_REQUESTS = 250000
-EXPERIMENT_TYPE = 'controls_off'
+EXPERIMENT_TYPE = 'hyperthreading_off'
 
 def run_n_redis_benchmarks(n: int):
     port = 6379
@@ -29,7 +29,7 @@ def run_n_redis_benchmarks(n: int):
     # Final redis benchmark should execute on the main thread
     os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n {str(REDIS_BENCH_REQUESTS)} -p {str(port)} --csv >> {tmp_results_path}')
 
-    time.sleep(6)
+    time.sleep(3)
 
     os.system(f'ssh {SERVER_NODE} "bash -c \'pkill -9 redis-server\'"')
 
@@ -61,6 +61,15 @@ def run_n_redis_benchmarks(n: int):
 ############################################################################
 
 if __name__ == '__main__':
+    run_idx = 1
     for n in range(1, MAX_INSTANCES + 1, 4):
         print(f'[*] ----- Running {n} redis-server instances -----')
-        run_n_redis_benchmarks(n)
+        if run_idx < 3:
+            # For the first two runs, get a good number
+            # of iterations in to generate error bars.
+            for _ in range(0, 5):
+                run_n_redis_benchmarks(n)
+        else:
+            run_n_redis_benchmarks(n)
+
+        run_idx += 1
