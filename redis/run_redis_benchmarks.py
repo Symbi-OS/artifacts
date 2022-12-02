@@ -20,11 +20,11 @@ def run_n_redis_benchmarks(n: int):
     port = 6379
 
     for i in range(0, n - 1):
-        os.system(f'redis-benchmark -h 192.168.19.55 -t set -n 1000000 -p {str(port)} --csv >> {tmp_results_path} &')
+        os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n 1000000 -p {str(port)} --csv >> {tmp_results_path} &')
         port += 1
 
     # Final redis benchmark should execute on the main thread
-    os.system(f'redis-benchmark -h 192.168.19.55 -t set -n 1000000 -p {str(port)} --csv >> {tmp_results_path}')
+    os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n 1000000 -p {str(port)} --csv >> {tmp_results_path}')
 
     time.sleep(6)
 
