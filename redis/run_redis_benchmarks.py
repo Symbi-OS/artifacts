@@ -3,9 +3,10 @@ import os
 import csv
 import time
 
-MAX_INSTANCES=16
-SERVER_NODE='192.168.19.55'
+MAX_INSTANCES = 32
+SERVER_NODE = '192.168.19.66'
 tmp_results_path = 'tmp_redis_results.csv'
+REDIS_BENCH_REQUESTS = 500000
 
 def run_n_redis_benchmarks(n: int):
     port = 6379
@@ -15,16 +16,16 @@ def run_n_redis_benchmarks(n: int):
     for i in range(0, n):
         port = 6379 + i
         os.system(f'ssh {SERVER_NODE} "redis-server --port {str(port)} --protected-mode no --save \'\' --appendonly no &> /dev/null &"')
-        time.sleep(0.5)
 
+    time.sleep(1)
     port = 6379
 
     for i in range(0, n - 1):
-        os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n 1000000 -p {str(port)} --csv >> {tmp_results_path} &')
+        os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n {str(REDIS_BENCH_REQUESTS)} -p {str(port)} --csv >> {tmp_results_path} &')
         port += 1
 
     # Final redis benchmark should execute on the main thread
-    os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n 1000000 -p {str(port)} --csv >> {tmp_results_path}')
+    os.system(f'redis-benchmark -h {SERVER_NODE} -t set -n {str(REDIS_BENCH_REQUESTS)} -p {str(port)} --csv >> {tmp_results_path}')
 
     time.sleep(6)
 
@@ -60,6 +61,6 @@ def run_n_redis_benchmarks(n: int):
 if __name__ == '__main__':
     os.system('rm -rf redis_results.csv')
 
-    for n in range(1, MAX_INSTANCES + 1):
+    for n in range(1, MAX_INSTANCES + 1, 4):
         print(f'[*] ----- Running {n} redis-server instances -----')
         run_n_redis_benchmarks(n)
