@@ -6,7 +6,8 @@ import time
 MAX_INSTANCES = 32
 SERVER_NODE = '192.168.19.66'
 tmp_results_path = 'tmp_redis_results.csv'
-REDIS_BENCH_REQUESTS = 500000
+REDIS_BENCH_REQUESTS = 250000
+EXPERIMENT_TYPE = 'controls_off'
 
 def run_n_redis_benchmarks(n: int):
     port = 6379
@@ -16,6 +17,7 @@ def run_n_redis_benchmarks(n: int):
     for i in range(0, n):
         port = 6379 + i
         os.system(f'ssh {SERVER_NODE} "redis-server --port {str(port)} --protected-mode no --save \'\' --appendonly no &> /dev/null &"')
+        time.sleep(0.1)
 
     time.sleep(1)
     port = 6379
@@ -50,17 +52,15 @@ def run_n_redis_benchmarks(n: int):
 
     if os.path.isfile('redis_results.csv') is not True:
         with open('redis_results.csv', 'w+') as f:
-            f.write('"redis_instances","throughput"')
+            f.write('"redis_instances","throughput","type"')
             f.write('\n')
 
     with open('redis_results.csv', 'a') as f:
-        f.write(f'{str(n)},{str(aggregate_throughput)}\n')
+        f.write(f'{str(n)},{str(aggregate_throughput)},{EXPERIMENT_TYPE}\n')
 
 ############################################################################
 
 if __name__ == '__main__':
-    os.system('rm -rf redis_results.csv')
-
     for n in range(1, MAX_INSTANCES + 1, 4):
         print(f'[*] ----- Running {n} redis-server instances -----')
         run_n_redis_benchmarks(n)
