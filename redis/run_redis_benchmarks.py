@@ -3,20 +3,24 @@ import os
 import csv
 import time
 
-MAX_INSTANCES = 32
-SERVER_NODE = '192.168.19.66'
+MAX_INSTANCES = 7
+SERVER_NODE = '192.168.122.18'
 tmp_results_path = 'tmp_redis_results.csv'
 REDIS_BENCH_REQUESTS = 250000
-EXPERIMENT_TYPE = 'hyperthreading_off'
+EXPERIMENT_TYPE = 'ipc_same_node'
 
 def run_n_redis_benchmarks(n: int):
     port = 6379
 
     os.system(f'rm -rf {tmp_results_path}')
 
+    # Starting the IPC server
+    os.system(f'ssh {SERVER_NODE} "./Symbi-OS/artifacts/ipc_interposer/server {n} &>/dev/null &" &')
+    time.sleep(3)
+
     for i in range(0, n):
         port = 6379 + i
-        os.system(f'ssh {SERVER_NODE} "redis-server --port {str(port)} --protected-mode no --save \'\' --appendonly no &> /dev/null &"')
+        os.system(f'ssh {SERVER_NODE} "LD_PRELOAD=\'./Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so\' ./Symbi-OS/artifacts/redis/fed36/redis-server --port {str(port)} --protected-mode no --save \'\' --appendonly no &> /dev/null &"')
         time.sleep(0.1)
 
     time.sleep(1)
@@ -32,6 +36,9 @@ def run_n_redis_benchmarks(n: int):
     time.sleep(3)
 
     os.system(f'ssh {SERVER_NODE} "bash -c \'pkill -9 redis-server\'"')
+    os.system(f'ssh {SERVER_NODE} "./Symbi-OS/artifacts/ipc_interposer/server_killer {n} &>/dev/null"')
+    
+    time.sleep(1)
 
     # Parse the results
     aggregate_throughput = 0
@@ -62,12 +69,13 @@ def run_n_redis_benchmarks(n: int):
 
 if __name__ == '__main__':
     run_idx = 1
-    for n in range(1, MAX_INSTANCES + 1, 4):
+    for n in range(1, MAX_INSTANCES + 1, 1):
         print(f'[*] ----- Running {n} redis-server instances -----')
-        if run_idx < 3:
+        #if run_idx < 3:
+        if True:
             # For the first two runs, get a good number
             # of iterations in to generate error bars.
-            for _ in range(0, 5):
+            for _ in range(0, 6):
                 run_n_redis_benchmarks(n)
         else:
             run_n_redis_benchmarks(n)
