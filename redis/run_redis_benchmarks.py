@@ -7,20 +7,45 @@ MAX_INSTANCES = 7
 SERVER_NODE = '192.168.122.18'
 tmp_results_path = 'tmp_redis_results.csv'
 REDIS_BENCH_REQUESTS = 250000
-EXPERIMENT_TYPE = 'ipc_same_node'
+EXPERIMENT_TYPE = 'different_nodes_vm'
+
+IPC_SHORTCUT_LIB = './Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so'
+IPC_SERVER_BIN = './Symbi-OS/artifacts/ipc_interposer/server'
+REDIS_BIN = './Symbi-OS/artifacts/redis/fed36/redis-server'
+REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
+
+SHOULD_USE_IPC = False
+
+def run_server_cmd(cmd: str, daemon: bool, local_daemon: bool = False):
+    if daemon:
+        server_cmd = f'ssh {SERVER_NODE} "{cmd} &"'
+    else:
+        server_cmd = f'ssh {SERVER_NODE} "{cmd}"'
+
+    if local_daemon:
+        server_cmd += ' &'
+
+    # Run the command over ssh inside the server node
+    os.system(server_cmd)
 
 def run_n_redis_benchmarks(n: int):
     port = 6379
 
     os.system(f'rm -rf {tmp_results_path}')
 
-    # Starting the IPC server
-    os.system(f'ssh {SERVER_NODE} "./Symbi-OS/artifacts/ipc_interposer/server {n} &>/dev/null &" &')
-    time.sleep(3)
+    if SHOULD_USE_IPC:
+        # Starting the IPC server
+        run_server_cmd(f'{IPC_SERVER_BIN} {n} &>/dev/null', True, True)
+        time.sleep(3)
 
     for i in range(0, n):
         port = 6379 + i
-        os.system(f'ssh {SERVER_NODE} "LD_PRELOAD=\'./Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so\' ./Symbi-OS/artifacts/redis/fed36/redis-server --port {str(port)} --protected-mode no --save \'\' --appendonly no &> /dev/null &"')
+        
+        if SHOULD_USE_IPC:
+            run_server_cmd(f'LD_PRELOAD=\'{IPC_SHORTCUT_LIB}\' {REDIS_BIN} {REDIS_SERVER_ARGS.format(port)}', True)
+        else:
+            run_server_cmd(f'{REDIS_BIN} {REDIS_SERVER_ARGS.format(port)}', True)
+
         time.sleep(0.1)
 
     time.sleep(1)
@@ -35,8 +60,10 @@ def run_n_redis_benchmarks(n: int):
 
     time.sleep(3)
 
-    os.system(f'ssh {SERVER_NODE} "bash -c \'pkill -9 redis-server\'"')
-    os.system(f'ssh {SERVER_NODE} "./Symbi-OS/artifacts/ipc_interposer/server_killer {n} &>/dev/null"')
+    run_server_cmd('bash -c \'pkill -9 redis-server\'', False)
+    if SHOULD_USE_IPC:
+        # Kill the IPC server
+        run_server_cmd(f'{IPC_SERVER_BIN}_killer {n} &>/dev/null', False)
     
     time.sleep(1)
 
