@@ -1,8 +1,13 @@
-.PHONY: all clean
+.PHONY: all clean sym baseline
 
-all:
-	./build-initrd.sh $${PWD}/.. fed36
+all: sym baseline
+
+sym:
+	./build-initrd.sh $${PWD}/.. fed36 sym
+
+baseline:
+	./build-initrd.sh $${PWD}/.. fed36 base
 
 clean:
-	rm -f symbios-redis.cpio.gz
+	rm -f *.cpio.gz
 

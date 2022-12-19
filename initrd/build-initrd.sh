@@ -4,6 +4,7 @@ set -x
 
 ARTIFACTS=$1
 VERSION=$2
+INITPREFIX=$3
 
 BASE=initrd-base
 BIN=$BASE/usr/bin
@@ -53,7 +54,7 @@ mknod -m 660 $DEV/ram0    b 1 1
 # Stuff for initrd to work
 cp $ARTIFACTS/initrd/$VERSION/bin/* $BIN
 cp $ARTIFACTS/initrd/$VERSION/lib64/* $LIB64
-cp $ARTIFACTS/initrd/init $BASE/
+cp $ARTIFACTS/initrd/${INITPREFIX}-init $BASE/
 # Experimental tools
 cp $ARTIFACTS/share/System.map-5.14.0-symbiote+ $BOOT/
 cp $ARTIFACTS/all_releases/Symlib/libSym.so $LIB64
@@ -63,6 +64,6 @@ cp -R $ARTIFACTS/all_releases/Tools/shortcut $LIB
 cp -R $ARTIFACTS/all_releases/Tools/bin/* $BIN
 
 pushd $BASE > /dev/null 2>&1
-find . | cpio -o --quiet -H newc | gzip -9 -n > $ARTIFACTS/initrd/symbios-redis.cpio.gz
+find . | cpio -o --quiet -H newc | gzip -9 -n > $ARTIFACTS/initrd/${INITPREFIX}-redis.cpio.gz
 popd > /dev/null 2>&1
 rm -Rf $BASE
