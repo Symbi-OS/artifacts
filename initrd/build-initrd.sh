@@ -54,7 +54,7 @@ mknod -m 660 $DEV/ram0    b 1 1
 # Stuff for initrd to work
 cp $ARTIFACTS/initrd/$VERSION/bin/* $BIN
 cp $ARTIFACTS/initrd/$VERSION/lib64/* $LIB64
-cp $ARTIFACTS/initrd/${INITPREFIX}-init $BASE/
+cp $ARTIFACTS/initrd/${INITPREFIX}-init $BASE/init
 # Experimental tools
 cp $ARTIFACTS/share/System.map-5.14.0-symbiote+ $BOOT/
 cp $ARTIFACTS/all_releases/Symlib/libSym.so $LIB64
