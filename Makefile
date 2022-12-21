@@ -12,6 +12,13 @@ update:
 	cp ../LinuxPrototypes/shmem_ipc/server ./ipc_interposer
 	cp ../LinuxPrototypes/shmem_ipc/server_killer ./ipc_interposer
 
+virt-ramdisk: $(TOP_DIR)/Tools $(TOP_DIR)/Symlib $(TOP_DIR)/Linux
+	${MAKE} -C initrd
+
+# Make all_releases dir
+$(TOP_DIR):
+	mkdir $@
+
 run_redis1:
 	./redis/fed36/redis-server --port 6379
 
@@ -38,3 +45,5 @@ run_kill:
 
 clean:
 	rm -rf *.rdb
+	rm -rf all_releases
+	${MAKE} -C initrd clean
