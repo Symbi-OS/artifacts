@@ -12,20 +12,13 @@ parser.add_argument("-max_instances", "--max_instances", help="Maximium number o
 parser.add_argument("-n", "--name", help="Name of the run", required=True)
 parser.add_argument("-o", "--one_shot", help="Run the max instances configuration only", action="store_true")
 parser.add_argument("-r", "--requests", help="Number of requests to be sent to each redis instance", type=int, default=500000)
-parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.18")
+parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.18", required=True)
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
 
 args = parser.parse_args()
 
-MAX_INSTANCES = args.max_instances
-SERVER_NODE = args.server
-tmp_results_path = 'tmp_redis_results.csv'
-REDIS_BENCH_REQUESTS = args.requests
-EXPERIMENT_NAME = args.name
-ITERATIONS_PER_RUN = args.iterations
-IPC_SERVER_THREADS = args.ipc_threads
-
+TMP_RESULTS_PATH = 'tmp_redis_results.csv'
 REDIS_START_PORT = 6379
 
 IPC_SHORTCUT_LIB = './Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so'
@@ -38,18 +31,18 @@ if args.mode == "ipc":
     SHOULD_USE_IPC = True
 
 def print_experiment_header():
-    print(f'########### {EXPERIMENT_NAME} ###########')
-    print(f'\tServer Node         : {SERVER_NODE}')
-    print(f'\tMax Redis Instances : {MAX_INSTANCES}')
-    print(f'\tIterations Per Run  : {ITERATIONS_PER_RUN}')
+    print(f'########### {args.name} ###########')
+    print(f'\tServer Node         : {args.server}')
+    print(f'\tMax Redis Instances : {args.max_instances}')
+    print(f'\tIterations Per Run  : {args.iterations}')
     print(f'\tUsing IPC           : {SHOULD_USE_IPC}')
-    print(f'\tIPC Server Threads  : {IPC_SERVER_THREADS}')
+    print(f'\tIPC Server Threads  : {args.ipc_threads}')
 
 def run_server_cmd(cmd: str, daemon: bool, local_daemon: bool = False):
     if daemon:
-        server_cmd = f'ssh {SERVER_NODE} "{cmd} &"'
+        server_cmd = f'ssh {args.server} "{cmd} &"'
     else:
-        server_cmd = f'ssh {SERVER_NODE} "{cmd}"'
+        server_cmd = f'ssh {args.server} "{cmd}"'
 
     if local_daemon:
         server_cmd += ' &'
@@ -85,8 +78,8 @@ def kickoff_remote_servers(n: int):
 
 def kickoff_benchmarks(n):
     # Start all the benchmark processes, one for each redis instance, vary the ports.
-    prefix = (f'redis-benchmark -h {SERVER_NODE} -t set -n {str(REDIS_BENCH_REQUESTS)} -p')
-    suffix = (f'--csv >> {tmp_results_path}')
+    prefix = (f'redis-benchmark -h {args.server} -t set -n {str(args.requests)} -p')
+    suffix = (f'--csv >> {TMP_RESULTS_PATH}')
 
     # if verbose, print the command
     if args.verbose:
@@ -113,12 +106,12 @@ def kickoff_benchmarks(n):
 
 def run_n_redis_benchmarks(n: int):
 
-    os.system(f'rm -rf {tmp_results_path}')
+    os.system(f'rm -rf {TMP_RESULTS_PATH}')
 
     if SHOULD_USE_IPC:
         # Starting the IPC server
-        if IPC_SERVER_THREADS is not None:
-            run_server_cmd(f'{IPC_SERVER_BIN} {IPC_SERVER_THREADS} &>/dev/null', True, True)
+        if args.ipc_threads is not None:
+            run_server_cmd(f'{IPC_SERVER_BIN} {args.ipc_threads} &>/dev/null', True, True)
         else:
             run_server_cmd(f'{IPC_SERVER_BIN} {n} &>/dev/null', True, True)
 
@@ -133,10 +126,10 @@ def run_n_redis_benchmarks(n: int):
     run_server_cmd('bash -c \'pkill redis-server\'', False)
     if SHOULD_USE_IPC:
         # Kill the IPC server
-        if IPC_SERVER_THREADS is not None:
+        if args.ipc_threads is not None:
             if args.verbose:
-                print(f'{IPC_SERVER_BIN}_killer {IPC_SERVER_THREADS} &>/dev/null')
-            run_server_cmd(f'{IPC_SERVER_BIN}_killer {IPC_SERVER_THREADS} &>/dev/null', False)
+                print(f'{IPC_SERVER_BIN}_killer {args.ipc_threads} &>/dev/null')
+            run_server_cmd(f'{IPC_SERVER_BIN}_killer {args.ipc_threads} &>/dev/null', False)
         else:
             if args.verbose:
                 print(f'{IPC_SERVER_BIN}_killer {n} &>/dev/null')
@@ -147,7 +140,7 @@ def run_n_redis_benchmarks(n: int):
     # Parse the results
     aggregate_throughput = 0
 
-    with open(tmp_results_path, newline='') as csvfile:
+    with open(TMP_RESULTS_PATH, newline='') as csvfile:
         # Read the second line of the csv file and add the throughput to the aggregate throughput
         # the throughput is the second column of the csv file, on even number lines
         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -167,7 +160,7 @@ def run_n_redis_benchmarks(n: int):
             f.write('\n')
 
     with open('redis_results.csv', 'a') as f:
-        f.write(f'{str(n)},{str(aggregate_throughput)},{EXPERIMENT_NAME}\n')
+        f.write(f'{str(n)},{str(aggregate_throughput)},{args.name}\n')
 
 ############################################################################
 
@@ -177,17 +170,17 @@ if __name__ == '__main__':
 
     # Instead of looping from 1 to MAX_INSTANCES, we can run a single experiment
     if args.one_shot:
-        print(f'[*] ----- Running {MAX_INSTANCES} redis-server instances -----')
+        print(f'[*] ----- Running {args.max_instances} redis-server instances -----')
         # Run the experiment ITERATIONS_PER_RUN times
-        for _ in range(0, ITERATIONS_PER_RUN):
-            run_n_redis_benchmarks(MAX_INSTANCES)
+        for _ in range(0, args.iterations):
+            run_n_redis_benchmarks(args.max_instances)
         exit(0)
     
 
     run_idx = 1
-    for n in range(1, MAX_INSTANCES + 1, 1):
+    for n in range(1, args.max_instances + 1, 1):
         print(f'[*] ----- Running {n} redis-server instances -----')
-        for _ in range(0, ITERATIONS_PER_RUN):
+        for _ in range(0, args.iterations):
             run_n_redis_benchmarks(n)
 
         run_idx += 1
