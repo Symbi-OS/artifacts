@@ -59,10 +59,9 @@ def run_server_cmd(cmd: str, daemon: bool, local_daemon: bool = False):
 
 def kickoff_remote_servers(n: int):
     if SHOULD_USE_IPC:
-        [ run_server_cmd(f'LD_PRELOAD=\'{IPC_SHORTCUT_LIB}\' {REDIS_BIN} {REDIS_SERVER_ARGS.format(port)}', True)for port in range(REDIS_START_PORT, REDIS_START_PORT + n) ] 
+        [ run_server_cmd(f'LD_PRELOAD=\'{IPC_SHORTCUT_LIB}\' {REDIS_BIN} {REDIS_SERVER_ARGS.format(port)}', True) for port in range(REDIS_START_PORT, REDIS_START_PORT + n) ] 
     else:
-        # TDOD: clean up for general case
-        server_cmd_prefix = 'ssh 192.168.1.2 "./Symbi-OS/artifacts/redis/fed36/redis-server --protected-mode no --save '' --appendonly no --port'
+        server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no --port'
         server_cmd_suffix = '&> /dev/null &"'
         # print the command about to run
         if args.verbose:
@@ -115,10 +114,15 @@ def run_n_redis_benchmarks(n: int):
         else:
             run_server_cmd(f'{IPC_SERVER_BIN} {n} &>/dev/null', True, True)
 
+        # The following sleep is necessary to ensure that the IPC server gets
+        # setup and initialized properly, i.e. creates the shared memory backing file.
         time.sleep(3)
 
     kickoff_remote_servers(n)
 
+    # This specific sleep is needed to ensure that all Redis servers are
+    # properly setup, initialized, and ready to accept connections, which
+    # happens after a maxmimum of a few hundred miliseconds after the launch.
     time.sleep(1)
 
     kickoff_benchmarks(n)
@@ -160,7 +164,7 @@ def run_n_redis_benchmarks(n: int):
             f.write('\n')
 
     with open('redis_results.csv', 'a') as f:
-        f.write(f'{str(n)},{str(aggregate_throughput)},{args.name}\n')
+        f.write(f'{str(n)},{str(round(aggregate_throughput, 2))},{args.name}\n')
 
 ############################################################################
 
