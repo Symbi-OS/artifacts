@@ -38,42 +38,26 @@ def print_experiment_header():
     print(f'\tUsing IPC           : {SHOULD_USE_IPC}')
     print(f'\tIPC Server Threads  : {args.ipc_threads}')
 
-def run_server_cmd(cmd: str, daemon: bool, local_daemon: bool = False):
-    if daemon:
-        server_cmd = f'ssh {args.server} "{cmd} &"'
-    else:
-        server_cmd = f'ssh {args.server} "{cmd}"'
-
-    if local_daemon:
-        server_cmd += ' &'
-
-    # Run the command over ssh inside the server node
-    # if verbose, print the command
-    if args.verbose:
-        print(server_cmd)
-    # execute the command and exit if it fails. Print the command if it fails
-    ret = os.system(server_cmd)
-    if ret != 0:
-        print(f'Failed to execute command: {server_cmd}, return value was {ret}' )
-        exit(1)
-
 def kickoff_remote_servers(n: int):
+    server_cmd_prefix = ''
+    server_cmd_suffix = ''
+
     if SHOULD_USE_IPC:
-        [ run_server_cmd(f'LD_PRELOAD=\'{IPC_SHORTCUT_LIB}\' {REDIS_BIN} {REDIS_SERVER_ARGS.format(port)}', True) for port in range(REDIS_START_PORT, REDIS_START_PORT + n) ] 
+        server_cmd_prefix = f'ssh {args.server} "LD_PRELOAD=\'{IPC_SHORTCUT_LIB}\' {REDIS_BIN} --protected-mode no --save '' --appendonly no --port'
+        server_cmd_suffix = '&> /dev/null &"'
     else:
         server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no --port'
         server_cmd_suffix = '&> /dev/null &"'
-        # print the command about to run
-        if args.verbose:
-            [print(server_cmd_prefix + ' ' + str(port) + ' ' + server_cmd_suffix) for port in range(REDIS_START_PORT, REDIS_START_PORT + n)]
 
-        # Note, if this causes failures, such as kex_exchange_identification: read: Connection reset by peer Connection reset by 192.168.1.2 port 22
-        # Go into /etc/ssh/sshd_config and change MaxStartups and MaxSessions to a larger number like 512
-        ps = [subprocess.Popen(server_cmd_prefix + ' ' + str(port) + ' ' + server_cmd_suffix, shell=True) for port in range(REDIS_START_PORT, REDIS_START_PORT + n)]
+    # print the command about to run
+    if args.verbose:
+        [print(server_cmd_prefix + ' ' + str(port) + ' ' + server_cmd_suffix) for port in range(REDIS_START_PORT, REDIS_START_PORT + n)]
 
-        [p.wait() for p in ps]
+    # Note, if this causes failures, such as kex_exchange_identification: read: Connection reset by peer Connection reset by 192.168.1.2 port 22
+    # Go into /etc/ssh/sshd_config and change MaxStartups and MaxSessions to a larger number like 512
+    ps = [subprocess.Popen(server_cmd_prefix + ' ' + str(port) + ' ' + server_cmd_suffix, shell=True) for port in range(REDIS_START_PORT, REDIS_START_PORT + n)]
 
-#        [ run_server_cmd(f'{REDIS_BIN} {REDIS_SERVER_ARGS.format(port)}', True) for port in range(REDIS_START_PORT, REDIS_START_PORT + n)]
+    [p.wait() for p in ps]
 
 def kickoff_benchmarks(n):
     # Start all the benchmark processes, one for each redis instance, vary the ports.
@@ -109,10 +93,19 @@ def run_n_redis_benchmarks(n: int):
 
     if SHOULD_USE_IPC:
         # Starting the IPC server
+        # For some reason the ssh call hangs even if the server
+        # command is in the background, hence the second &.
         if args.ipc_threads is not None:
-            run_server_cmd(f'{IPC_SERVER_BIN} {args.ipc_threads} &>/dev/null', True, True)
+            server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN} {args.ipc_threads} &>/dev/null &" &'
+            if args.verbose:
+                print(server_cmd)
         else:
-            run_server_cmd(f'{IPC_SERVER_BIN} {n} &>/dev/null', True, True)
+            server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN} {n} &>/dev/null &" &'
+            if args.verbose:
+                print(server_cmd)
+
+        p = subprocess.Popen(server_cmd, shell=True) 
+        p.wait()
 
         # The following sleep is necessary to ensure that the IPC server gets
         # setup and initialized properly, i.e. creates the shared memory backing file.
@@ -127,18 +120,25 @@ def run_n_redis_benchmarks(n: int):
 
     kickoff_benchmarks(n)
 
-    run_server_cmd('bash -c \'pkill redis-server\'', False)
+    kill_server_cmd = f'ssh {args.server} "bash -c \'pkill redis-server\'"'
+    p = subprocess.Popen(kill_server_cmd, shell=True) 
+    p.wait()
+
     if SHOULD_USE_IPC:
+        server_cmd = ''
+
         # Kill the IPC server
         if args.ipc_threads is not None:
-            if args.verbose:
-                print(f'{IPC_SERVER_BIN}_killer {args.ipc_threads} &>/dev/null')
-            run_server_cmd(f'{IPC_SERVER_BIN}_killer {args.ipc_threads} &>/dev/null', False)
+            server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN}_killer {args.ipc_threads} &>/dev/null"'
         else:
-            if args.verbose:
-                print(f'{IPC_SERVER_BIN}_killer {n} &>/dev/null')
-            run_server_cmd(f'{IPC_SERVER_BIN}_killer {n} &>/dev/null', False)
+            server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN}_killer {n} &>/dev/null"'
     
+        if args.verbose:
+            print(server_cmd)
+
+        p = subprocess.Popen(server_cmd, shell=True) 
+        p.wait()
+
     time.sleep(1)
 
     # Parse the results
