@@ -24,8 +24,10 @@ args = parser.parse_args()
 TMP_RESULTS_PATH = 'tmp_redis_results.csv'
 REDIS_START_PORT = 6379
 
-IPC_SHORTCUT_LIB = '~/Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so'
-IPC_SERVER_BIN = '~/Symbi-OS/artifacts/ipc_interposer/server'
+IPC_SHORTCUT_LIB = '/root/Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so'
+IPC_SERVER_BIN = '/root/Symbi-OS/artifacts/ipc_interposer/server'
+# IPC_SHORTCUT_LIB = '/root/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
+# IPC_SERVER_BIN = '/root/Symbi-OS/Tools/bin/ipc/server'
 REDIS_BIN = '~/Symbi-OS/artifacts/redis/fed36/redis-server'
 REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
 
