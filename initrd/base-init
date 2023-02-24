@@ -35,6 +35,4 @@ ln -sf /proc/mounts /etc/mtab
 
 echo "using $@ as shortcut args"
 
-/bin/recipes/mitigate_all.sh
-
 /bin/redis-server --protected-mode no --save '' --appendonly no
