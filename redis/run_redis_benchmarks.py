@@ -18,15 +18,17 @@ parser.add_argument("-r", "--requests", help="Number of requests to be sent to e
 parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.18", required=True)
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
+parser.add_argument("-sc", "--shortcut", help="Use symbiote shortcuts", action="store_true")
 
 args = parser.parse_args()
 
 TMP_RESULTS_PATH = 'tmp_redis_results.csv'
 REDIS_START_PORT = 6379
 
-IPC_SHORTCUT_LIB = '/root/Symbi-OS/artifacts/ipc_interposer/ipc_shortcut.so'
-IPC_SERVER_BIN = '/root/Symbi-OS/artifacts/ipc_interposer/server'
-REDIS_BIN = '/root/Symbi-OS/artifacts/redis/fed36/redis-server'
+IPC_SHORTCUT_LIB = '/home/sym/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
+IPC_SERVER_BIN = '/home/sym/Symbi-OS/Tools/bin/ipc/server'
+#REDIS_BIN = '/home/sym/Symbi-OS/artifacts/redis/fed36/redis-server'
+REDIS_BIN = '/home/sym/redis-stable/src/redis-server'
 REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
 
 SHOULD_USE_IPC = False
@@ -41,6 +43,7 @@ def print_experiment_header():
     print(f'\tIterations Per Run  : {args.iterations}')
     print(f'\tUsing IPC           : {SHOULD_USE_IPC}')
     print(f'\tIPC Server Threads  : {args.ipc_threads}')
+    print(f'\tSymbiote Shortcuts  : {args.shortcut}')
 
 def kickoff_remote_servers(n: int):
     server_cmd_prefix = ''
@@ -50,7 +53,11 @@ def kickoff_remote_servers(n: int):
         server_cmd_prefix = f'ssh {args.server} "LD_PRELOAD=\'{IPC_SHORTCUT_LIB}\' {REDIS_BIN} --protected-mode no --save '' --appendonly no --port'
         server_cmd_suffix = '&> /dev/null &"'
     else:
-        server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no --port'
+        if args.shortcut:
+            server_cmd_prefix = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+        else:
+            server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+        
         server_cmd_suffix = '&> /dev/null &"'
 
     # print the command about to run
@@ -97,19 +104,28 @@ def run_n_redis_benchmarks(n: int):
     # Here you can choose a different configuration for ipc server threads
     #server_threads = math.ceil((n * 1) / 2)
     server_threads = n
-    if args.verbose:
-        print(f'[*] Starting {server_threads} ipc threads')
 
     if SHOULD_USE_IPC:
+        if args.verbose:
+            print(f'[*] Starting {server_threads} ipc threads')
+
         # Starting the IPC server
         # For some reason the ssh call hangs even if the server
         # command is in the background, hence the second &.
         if args.ipc_threads is not None:
-            server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN} {args.ipc_threads} &>/dev/null &" &'
+            if args.shortcut:
+                server_cmd = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {IPC_SERVER_BIN} {args.ipc_threads} &>/dev/null &" &'
+            else:
+                server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN} {args.ipc_threads} &>/dev/null &" &'
+
             if args.verbose:
                 print(server_cmd)
         else:
-            server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN} {server_threads} &>/dev/null &" &'
+            if args.shortcut:
+                server_cmd = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {IPC_SERVER_BIN} {server_threads} &>/dev/null &" &'
+            else:
+                server_cmd = f'ssh {args.server} "{IPC_SERVER_BIN} {server_threads} &>/dev/null &" &'
+            
             if args.verbose:
                 print(server_cmd)
 
