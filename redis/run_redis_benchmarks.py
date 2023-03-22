@@ -8,17 +8,19 @@ import argparse
 import subprocess
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-i", "--iterations", help="Number of iterations for each run", type=int, default=5)
+parser.add_argument("-i", "--iterations", help="Number of iterations for each run", type=int, default=10)
 parser.add_argument("-m", "--mode", help="Specify 'ipc' in order to use IPC approach", default="normal")
-parser.add_argument("-max_instances", "--max_instances", help="Maximium number of redis instances to scale to", type=int, default=7)
+parser.add_argument("-max_instances", "--max_instances", help="Maximium number of redis instances to scale to", type=int, default=5)
 parser.add_argument("-min_instances", "--min_instances", help="Minimum number of redis instances start from", type=int, default=1)
 parser.add_argument("-n", "--name", help="Name of the run", required=True)
 parser.add_argument("-o", "--one_shot", help="Run the max instances configuration only", action="store_true")
 parser.add_argument("-r", "--requests", help="Number of requests to be sent to each redis instance", type=int, default=100000)
-parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.18", required=True)
+parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.85", required=True)
+parser.add_argument("-u", "--uname", help="Username for ssh to target server", default="sym")
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
 parser.add_argument("-sc", "--shortcut", help="Use symbiote shortcuts", action="store_true")
+parser.add_argument("-dsc", "--deep_shortcut", help="Use symbiote deep shortcuts for read and write", action="store_true")
 
 args = parser.parse_args()
 
@@ -27,8 +29,8 @@ REDIS_START_PORT = 6379
 
 IPC_SHORTCUT_LIB = '/home/sym/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
 IPC_SERVER_BIN = '/home/sym/Symbi-OS/Tools/bin/ipc/server'
-#REDIS_BIN = '/home/sym/Symbi-OS/artifacts/redis/fed36/redis-server'
-REDIS_BIN = '/home/sym/redis-stable/src/redis-server'
+REDIS_BIN = '/home/sym/Symbi-OS/artifacts/redis/fed36/redis-server'
+# REDIS_BIN = '/home/sym/redis-stable/src/redis-server'
 REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
 
 SHOULD_USE_IPC = False
@@ -44,6 +46,8 @@ def print_experiment_header():
     print(f'\tUsing IPC           : {SHOULD_USE_IPC}')
     print(f'\tIPC Server Threads  : {args.ipc_threads}')
     print(f'\tSymbiote Shortcuts  : {args.shortcut}')
+    print(f'\tSymbiote Deep Shortcuts  : {args.deep_shortcut}')
+
 
 def kickoff_remote_servers(n: int):
     server_cmd_prefix = ''
@@ -55,6 +59,8 @@ def kickoff_remote_servers(n: int):
     else:
         if args.shortcut:
             server_cmd_prefix = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+        elif args.deep_shortcut:
+            server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         else:
             server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         
@@ -72,7 +78,7 @@ def kickoff_remote_servers(n: int):
 
 def kickoff_benchmarks(n):
     # Start all the benchmark processes, one for each redis instance, vary the ports.
-    prefix = (f'redis-benchmark -h {args.server} -t set -n {str(args.requests)} -p')
+    prefix = (f'redis-benchmark -q -h {args.server} -t set -n {str(args.requests)} -p')
     suffix = (f'--csv >> {TMP_RESULTS_PATH}')
 
     # if verbose, print the command
@@ -145,7 +151,7 @@ def run_n_redis_benchmarks(n: int):
 
     kickoff_benchmarks(n)
 
-    kill_server_cmd = f'ssh {args.server} "bash -c \'pkill redis-server\'"'
+    kill_server_cmd = f'ssh {args.uname}@{args.server} "bash -c \'pkill redis-server\'"'
     p = subprocess.Popen(kill_server_cmd, shell=True) 
     p.wait()
 
