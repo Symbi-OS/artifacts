@@ -17,7 +17,7 @@ parser.add_argument("-o", "--one_shot", help="Run the max instances configuratio
 parser.add_argument("-r", "--requests", help="Number of requests to be sent to each redis instance", type=int, default=100000)
 parser.add_argument("-c", "--clients", help="Number of concurrent clients used by redis-benchmark", type=int, default=50)
 parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.85", required=True)
-parser.add_argument("-u", "--uname", help="Username for ssh to target server")
+parser.add_argument("-u", "--uname", help="Username for ssh to target server", default="")
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
 parser.add_argument("-sc", "--shortcut", help="Use symbiote shortcuts", action="store_true")
@@ -30,9 +30,10 @@ REDIS_START_PORT = 6379
 
 IPC_SHORTCUT_LIB = '/home/sym/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
 IPC_SERVER_BIN = '/home/sym/Symbi-OS/Tools/bin/ipc/server'
-REDIS_BIN = '/home/sym/Symbi-OS/artifacts/redis/fed36/redis-server'
+REDIS_BIN = '~/Symbi-OS/artifacts/redis/fed36/redis-server'
 # REDIS_BIN = '/home/sym/redis-stable/src/redis-server'
 REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
+TOOLS_PATH = '~/Symbi-OS/Tools'
 
 SHOULD_USE_IPC = False
 if args.mode == "ipc":
@@ -49,6 +50,20 @@ def print_experiment_header():
     print(f'\tSymbiote Shortcuts  : {args.shortcut}')
     print(f'\tSymbiote Deep Shortcuts  : {args.deep_shortcut}')
 
+def build_tools():
+    if args.dsc:
+        build_cmd = f'ssh {args.uname}@{args.server} "make -C {TOOLS_PATH} clean && make -C {TOOLS_PATH} DEEP_SC_DEFINE=-DDEEP_SHORTCUT all" '
+    else:
+        build_cmd = f'ssh {args.uname}@{args.server} "make -C {TOOLS_PATH} clean && make -C {TOOLS_PATH} DEEP_SC_DEFINE=-UDEEP_SHORTCUT all" '
+    p = subprocess.Popen(build_cmd, shell=True)
+    p.wait()
+
+def warm_up_node():
+    server_cmd = f'ssh {args.uname}@{args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no &> /dev/null &"'
+    client_cmd = f'redis-benchmark -h {args.server} -c 50 -n 100000 -t set,get'
+    ps = subprocess.Popen(server_cmd, shell=True)
+    p = subprocess.Popen(client_cmd, shell=True)
+    p.wait()
 
 def kickoff_remote_servers(n: int):
     server_cmd_prefix = ''
@@ -59,11 +74,11 @@ def kickoff_remote_servers(n: int):
         server_cmd_suffix = '&> /dev/null &"'
     else:
         if args.shortcut:
-            server_cmd_prefix = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         elif args.deep_shortcut:
             server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" -s \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         else:
-            server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}@{args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         
         server_cmd_suffix = '&> /dev/null &"'
 
@@ -142,6 +157,8 @@ def run_n_redis_benchmarks(n: int):
         # The following sleep is necessary to ensure that the IPC server gets
         # setup and initialized properly, i.e. creates the shared memory backing file.
         time.sleep(3)
+
+    build_tools()
 
     kickoff_remote_servers(n)
 
