@@ -15,6 +15,7 @@ parser.add_argument("-min_instances", "--min_instances", help="Minimum number of
 parser.add_argument("-n", "--name", help="Name of the run", required=True)
 parser.add_argument("-o", "--one_shot", help="Run the max instances configuration only", action="store_true")
 parser.add_argument("-r", "--requests", help="Number of requests to be sent to each redis instance", type=int, default=100000)
+parser.add_argument("-c", "--clients", help="Number of concurrent clients used by redis-benchmark", type=int, default=50)
 parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.85", required=True)
 parser.add_argument("-u", "--uname", help="Username for ssh to target server", default="sym")
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
@@ -78,7 +79,7 @@ def kickoff_remote_servers(n: int):
 
 def kickoff_benchmarks(n):
     # Start all the benchmark processes, one for each redis instance, vary the ports.
-    prefix = (f'redis-benchmark -q -h {args.server} -t set -n {str(args.requests)} -p')
+    prefix = (f'redis-benchmark -q -h {args.server} -t set -c {args.clients} -n {args.requests} -p')
     suffix = (f'--csv >> {TMP_RESULTS_PATH}')
 
     # if verbose, print the command
