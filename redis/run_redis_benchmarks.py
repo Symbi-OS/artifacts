@@ -30,14 +30,17 @@ REDIS_START_PORT = 6379
 
 IPC_SHORTCUT_LIB = '/home/sym/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
 IPC_SERVER_BIN = '/home/sym/Symbi-OS/Tools/bin/ipc/server'
-REDIS_BIN = '~/Symbi-OS/artifacts/redis/fed36/redis-server'
+REDIS_BIN = '/home/sym/Symbi-OS/artifacts/redis/fed36/redis-server'
 # REDIS_BIN = '/home/sym/redis-stable/src/redis-server'
 REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
-TOOLS_PATH = '~/Symbi-OS/Tools'
+TOOLS_PATH = '/home/sym/Symbi-OS/Tools'
 
 SHOULD_USE_IPC = False
 if args.mode == "ipc":
     SHOULD_USE_IPC = True
+
+if args.uname != "":
+    args.uname += "@"
 
 def print_experiment_header():
     print(f'########### {args.name} ###########')
@@ -51,19 +54,31 @@ def print_experiment_header():
     print(f'\tSymbiote Deep Shortcuts  : {args.deep_shortcut}')
 
 def build_tools():
-    if args.dsc:
-        build_cmd = f'ssh {args.uname}@{args.server} "make -C {TOOLS_PATH} clean && make -C {TOOLS_PATH} DEEP_SC_DEFINE=-DDEEP_SHORTCUT all" '
+    clean_cmd = f'ssh {args.uname}{args.server} "cd {TOOLS_PATH} && make clean"'
+
+    if args.deep_shortcut:
+        build_cmd = f'ssh {args.uname}{args.server} "make -C {TOOLS_PATH} DEEP_SC_DEFINE=-DDEEP_SHORTCUT all"'
     else:
-        build_cmd = f'ssh {args.uname}@{args.server} "make -C {TOOLS_PATH} clean && make -C {TOOLS_PATH} DEEP_SC_DEFINE=-UDEEP_SHORTCUT all" '
+        build_cmd = f'ssh {args.uname}{args.server} "make -C {TOOLS_PATH} DEEP_SC_DEFINE=-UDEEP_SHORTCUT all"'
+
+    p = subprocess.Popen(clean_cmd, shell=True)
+    p.wait()
+
     p = subprocess.Popen(build_cmd, shell=True)
     p.wait()
 
 def warm_up_node():
-    server_cmd = f'ssh {args.uname}@{args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no &> /dev/null &"'
+    server_cmd = f'ssh {args.uname}{args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no &> /dev/null &"'
     client_cmd = f'redis-benchmark -h {args.server} -c 50 -n 100000 -t set,get'
     ps = subprocess.Popen(server_cmd, shell=True)
+    time.sleep(1)
     p = subprocess.Popen(client_cmd, shell=True)
     p.wait()
+
+    kill_server_cmd = f'ssh {args.uname}{args.server} "bash -c \'pkill redis-server\'"'
+    time.sleep(1)
+    pk = subprocess.Popen(kill_server_cmd, shell=True)
+    pk.wait()
 
 def kickoff_remote_servers(n: int):
     server_cmd_prefix = ''
@@ -74,11 +89,11 @@ def kickoff_remote_servers(n: int):
         server_cmd_suffix = '&> /dev/null &"'
     else:
         if args.shortcut:
-            server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}{args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         elif args.deep_shortcut:
-            server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" -s \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" -s \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         else:
-            server_cmd_prefix = f'ssh {args.uname}@{args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}{args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         
         server_cmd_suffix = '&> /dev/null &"'
 
@@ -158,8 +173,6 @@ def run_n_redis_benchmarks(n: int):
         # setup and initialized properly, i.e. creates the shared memory backing file.
         time.sleep(3)
 
-    build_tools()
-
     kickoff_remote_servers(n)
 
     # This specific sleep is needed to ensure that all Redis servers are
@@ -169,7 +182,7 @@ def run_n_redis_benchmarks(n: int):
 
     kickoff_benchmarks(n)
 
-    kill_server_cmd = f'ssh {args.uname}@{args.server} "bash -c \'pkill redis-server\'"'
+    kill_server_cmd = f'ssh {args.uname}{args.server} "bash -c \'pkill redis-server\'"'
     p = subprocess.Popen(kill_server_cmd, shell=True) 
     p.wait()
 
@@ -239,6 +252,8 @@ def run_n_redis_benchmarks(n: int):
 if __name__ == '__main__':
     print_experiment_header()
 
+    # build_tools()
+    warm_up_node()
 
     # Instead of looping from 1 to MAX_INSTANCES, we can run a single experiment
     if args.one_shot:
