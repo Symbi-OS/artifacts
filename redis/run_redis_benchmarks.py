@@ -17,7 +17,7 @@ parser.add_argument("-o", "--one_shot", help="Run the max instances configuratio
 parser.add_argument("-r", "--requests", help="Number of requests to be sent to each redis instance", type=int, default=100000)
 parser.add_argument("-c", "--clients", help="Number of concurrent clients used by redis-benchmark", type=int, default=50)
 parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.85", required=True)
-parser.add_argument("-u", "--uname", help="Username for ssh to target server", default="sym")
+parser.add_argument("-u", "--uname", help="Username for ssh to target server")
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
 parser.add_argument("-sc", "--shortcut", help="Use symbiote shortcuts", action="store_true")
@@ -59,9 +59,9 @@ def kickoff_remote_servers(n: int):
         server_cmd_suffix = '&> /dev/null &"'
     else:
         if args.shortcut:
-            server_cmd_prefix = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         elif args.deep_shortcut:
-            server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}@{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" -s \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         else:
             server_cmd_prefix = f'ssh {args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         
@@ -148,7 +148,7 @@ def run_n_redis_benchmarks(n: int):
     # This specific sleep is needed to ensure that all Redis servers are
     # properly setup, initialized, and ready to accept connections, which
     # happens after a maxmimum of a few hundred miliseconds after the launch.
-    time.sleep(1)
+    time.sleep(2)
 
     kickoff_benchmarks(n)
 
@@ -171,7 +171,7 @@ def run_n_redis_benchmarks(n: int):
         p = subprocess.Popen(server_cmd, shell=True) 
         p.wait()
 
-    time.sleep(1)
+    time.sleep(2)
 
     # Parse the results
     aggregate_throughput = 0
