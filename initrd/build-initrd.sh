@@ -61,6 +61,11 @@ cp $ARTIFACTS/all_releases/Symlib/libSym.so $LIB64
 cp $ARTIFACTS/redis/$VERSION/redis-server $BIN
 cp $ARTIFACTS/redis/$VERSION/dep_libs/* $LIB64
 cp -R $ARTIFACTS/all_releases/Tools/shortcut $LIB
+
+if [${INITPREFIX} = "deep-sc"] ; then
+	mv $LIB/shortcut/sc_lib_deep_sc.so $LIB/shortcut/sc_lib.so
+fi
+
 cp -R $ARTIFACTS/all_releases/Tools/bin/* $BIN
 
 pushd $BASE > /dev/null 2>&1

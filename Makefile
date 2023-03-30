@@ -21,18 +21,25 @@ $(TOP_DIR)/Tools: $(TOP_DIR)
 	mkdir -p $@/bin/
 	mv $@/cr_tool $@/bin/
 	mv $@/idt_tool $@/bin/
-	chmod +x $@/bin/{cr_tool,idt_tool}
+	chmod +x $@/bin/cr_tool
+	chmod +x $@/bin/idt_tool
 
 	mkdir -p $@/bin/recipes/
 	mv $@/interposing_mitigator.sh $@/bin/recipes/
 	mv $@/mitigate_all.sh $@/bin/recipes/
-	chmod +x $@/bin/recipes/{interposing_mitigator.sh,mitigate_all.sh}
+	chmod +x $@/bin/recipes/interposing_mitigator.sh
+	chmod +x $@/bin/recipes/mitigate_all.sh
 
 
 	mkdir -p $@/shortcut
 	mv $@/sc_lib.so $@/shortcut/
 	mv $@/shortcut.sh $@/shortcut/
-	chmod +x $@/shortcut/{sc_lib.so,shortcut.sh}
+	mv $@/sc_lib_deep_sc.so $@/shortcut/
+	mv $@/libDeep.so $@/shortcut/
+	chmod +x $@/shortcut/sc_lib.so
+	chmod +x $@/shortcut/sc_lib_deep_sc.so
+	chmod +x $@/shortcut/libDeep.so
+	chmod +x $@/shortcut/shortcut.sh
 
 
 SYMLIB_REL_PATH=https://api.github.com/repos/Symbi-OS/Symlib/releases/latest
