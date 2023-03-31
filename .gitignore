@@ -1,2 +1,4 @@
 all_releases/
-initrd/symbios-redis.cpio.gz
+initrd/base-redis.cpio.gz
+initrd/sym-redis.cpio.gz
+initrd/deep-sc-redis.cpio.gz
