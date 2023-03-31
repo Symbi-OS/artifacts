@@ -63,7 +63,7 @@ cp $ARTIFACTS/redis/$VERSION/dep_libs/* $LIB64
 cp -R $ARTIFACTS/all_releases/Tools/shortcut $LIB
 ln -s shortcut/libDeep.so $LIB/libDeep.so
 
-if [${INITPREFIX} = "deep-sc"] ; then
+if [ "${INITPREFIX}" = "deep-sc" ] ; then
 	mv $LIB/shortcut/sc_lib_deep_sc.so $LIB/shortcut/sc_lib.so
 fi
 
