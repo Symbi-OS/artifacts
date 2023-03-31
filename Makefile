@@ -27,7 +27,7 @@ $(TOP_DIR)/Tools: $(TOP_DIR)
 	mkdir -p $@/bin/recipes/
 	mv $@/interposing_mitigator.sh $@/bin/recipes/
 	mv $@/mitigate_all.sh $@/bin/recipes/
-	mv $@/pf_ist.sh.sh $@/bin/recipes/
+	mv $@/pf_ist.sh $@/bin/recipes/
 	chmod +x $@/bin/recipes/interposing_mitigator.sh
 	chmod +x $@/bin/recipes/mitigate_all.sh
 	chmod +x $@/bin/recipes/pf_ist.sh
