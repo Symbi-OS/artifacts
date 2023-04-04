@@ -37,10 +37,8 @@ $(TOP_DIR)/Tools: $(TOP_DIR)
 	mv $@/sc_lib.so $@/shortcut/
 	mv $@/shortcut.sh $@/shortcut/
 	mv $@/sc_lib_deep_sc.so $@/shortcut/
-	mv $@/libDeep.so $@/shortcut/
 	chmod +x $@/shortcut/sc_lib.so
 	chmod +x $@/shortcut/sc_lib_deep_sc.so
-	chmod +x $@/shortcut/libDeep.so
 	chmod +x $@/shortcut/shortcut.sh
 
 
@@ -50,7 +48,7 @@ $(TOP_DIR)/Symlib: $(TOP_DIR)
 	mkdir $@
 	# Get all releases
 	cd $@ && curl $(SYMLIB_REL_PATH) | grep browser_download_url | cut -d '"' -f 4 | xargs wget
-	chmod +x $(TOP_DIR)/Symlib/libSym.so 
+	chmod +x $(TOP_DIR)/Symlib/libSym.so
 
 LINUX_REL_PATH=https://api.github.com/repos/Symbi-OS/linux/releases/latest
 # Get all Linux releases
