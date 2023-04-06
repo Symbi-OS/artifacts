@@ -186,6 +186,9 @@ def run_n_redis_benchmarks(n: int):
     p = subprocess.Popen(kill_server_cmd, shell=True) 
     p.wait()
 
+    p = subprocess.Popen(kill_server_cmd, shell=True)
+    p.wait()
+
     if SHOULD_USE_IPC:
         server_cmd = ''
 
