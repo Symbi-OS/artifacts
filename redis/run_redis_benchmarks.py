@@ -18,6 +18,7 @@ parser.add_argument("-r", "--requests", help="Number of requests to be sent to e
 parser.add_argument("-c", "--clients", help="Number of concurrent clients used by redis-benchmark", type=int, default=50)
 parser.add_argument("-s", "--server", help="IPv4 address of the server hosting redis instances", default="192.168.122.85", required=True)
 parser.add_argument("-u", "--uname", help="Username for ssh to target server", default="")
+parser.add_argument("-P", "--pipeline", help="Pipeline argument to redis-benchmark", default=1)
 parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the IPC server")
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
 parser.add_argument("-sc", "--shortcut", help="Use symbiote shortcuts", action="store_true")
@@ -69,7 +70,7 @@ def build_tools():
 
 def warm_up_node():
     server_cmd = f'ssh {args.uname}{args.server} "{REDIS_BIN} --protected-mode no --save '' --appendonly no &> /dev/null &"'
-    client_cmd = f'redis-benchmark -h {args.server} -c 50 -n 100000 -t set,get'
+    client_cmd = f'redis-benchmark -h {args.server} -c {args.clients} -n 100000 -t set,get'
     ps = subprocess.Popen(server_cmd, shell=True)
     time.sleep(1)
     p = subprocess.Popen(client_cmd, shell=True)
@@ -109,7 +110,7 @@ def kickoff_remote_servers(n: int):
 
 def kickoff_benchmarks(n):
     # Start all the benchmark processes, one for each redis instance, vary the ports.
-    prefix = (f'redis-benchmark -q -h {args.server} -t set -c {args.clients} -n {args.requests} -p')
+    prefix = (f'redis-benchmark -q -h {args.server} -t set -c {args.clients} -n {args.requests} -P {args.pipeline} -p')
     suffix = (f'--csv >> {TMP_RESULTS_PATH}')
 
     # if verbose, print the command
