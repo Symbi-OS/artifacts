@@ -23,18 +23,22 @@ parser.add_argument("-t", "--ipc_threads", help="Threads to be launched by the I
 parser.add_argument("-v", "--verbose", help="Verbose printing mode", action="store_true")
 parser.add_argument("-sc", "--shortcut", help="Use symbiote shortcuts", action="store_true")
 parser.add_argument("-dsc", "--deep_shortcut", help="Use symbiote deep shortcuts for read and write", action="store_true")
+parser.add_argument('--benchmark_threads', '--benchmark_threads', help="redis benchmark threads", default=1)
 
 args = parser.parse_args()
 
 TMP_RESULTS_PATH = 'tmp_redis_results.csv'
 REDIS_START_PORT = 6379
 
-IPC_SHORTCUT_LIB = '/home/sym/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
-IPC_SERVER_BIN = '/home/sym/Symbi-OS/Tools/bin/ipc/server'
-REDIS_BIN = '/home/sym/Symbi-OS/artifacts/redis/fed36/redis-server'
-# REDIS_BIN = '/home/sym/redis-stable/src/redis-server'
+IPC_SHORTCUT_LIB = '/home/ar/Symbi-OS/Tools/bin/ipc/ipc_shortcut.so'
+IPC_SERVER_BIN = '/home/ar/Symbi-OS/Tools/bin/ipc/server'
+REDIS_BIN = '/home/ar/Symbi-OS/artifacts/redis/fed36/redis-server'
+# REDIS_BIN = '/home/ar/redis-stable/src/redis-server'
 REDIS_SERVER_ARGS = "--protected-mode no --save '' --appendonly no --port {} &> /dev/null"
-TOOLS_PATH = '/home/sym/Symbi-OS/Tools'
+TOOLS_PATH = '/home/ar/Symbi-OS/Tools'
+
+SERVER_CORE = '4'
+CLIENT_CORE = '1'
 
 SHOULD_USE_IPC = False
 if args.mode == "ipc":
@@ -90,13 +94,13 @@ def kickoff_remote_servers(n: int):
         server_cmd_suffix = '&> /dev/null &"'
     else:
         if args.shortcut:
-            server_cmd_prefix = f'ssh {args.uname}{args.server} "shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}{args.server} "taskset -c {SERVER_CORE} bash -c \'shortcut.sh -be -s \\"write->__x64_sys_write\\" -s \\"read->__x64_sys_read\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         elif args.deep_shortcut:
-            server_cmd_prefix = f'ssh {args.uname}{args.server} "shortcut.sh -be -s \\"write->tcp_sendmsg\\" -s \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}{args.server} "taskset -c {SERVER_CORE} bash -c \'shortcut.sh -be -s \\"write->tcp_sendmsg\\" -s \\"read->tcp_recvmsg\\" --- {REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         else:
-            server_cmd_prefix = f'ssh {args.uname}{args.server} "{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
+            server_cmd_prefix = f'ssh {args.uname}{args.server} "taskset -c {SERVER_CORE} bash -c \'{REDIS_BIN} --protected-mode no --save \\"\\" --appendonly no --port'
         
-        server_cmd_suffix = '&> /dev/null &"'
+        server_cmd_suffix = '&> /dev/null &\'"'
 
     # print the command about to run
     if args.verbose:
@@ -110,7 +114,7 @@ def kickoff_remote_servers(n: int):
 
 def kickoff_benchmarks(n):
     # Start all the benchmark processes, one for each redis instance, vary the ports.
-    prefix = (f'redis-benchmark -q -h {args.server} -t set -c {args.clients} -n {args.requests} -P {args.pipeline} -p')
+    prefix = (f'taskset -c {CLIENT_CORE} redis-benchmark -q -h {args.server} -c {args.clients} -n {args.requests} -t get --threads {args.benchmark_threads} -P {args.pipeline} -p')
     suffix = (f'--csv >> {TMP_RESULTS_PATH}')
 
     # if verbose, print the command
